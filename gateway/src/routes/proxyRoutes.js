@@ -6,11 +6,11 @@ const { authenticate } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
-const buildProxy = (target, pathRewrite) =>
+// Removed pathRewrite argument entirely
+const buildProxy = (target) =>
   createProxyMiddleware({
     target,
     changeOrigin: true,
-    pathRewrite,
     proxyTimeout: 15000,
     timeout: 15000,
     on: {
@@ -33,12 +33,8 @@ const buildProxy = (target, pathRewrite) =>
     },
   });
 
-router.use(
-  "/auth",
-  buildProxy(services.authService, {
-    "^/auth": "",
-  })
-);
+// Just pass the target service. Express handles stripping the route prefix automatically!
+router.use("/auth", buildProxy(services.authService));
 
 router.use(
   "/movies",
@@ -46,34 +42,13 @@ router.use(
     if (req.method === "POST") {
       return authenticate({ roles: ["admin"] })(req, res, next);
     }
-
     return next();
   },
   buildProxy(services.movieService)
 );
 
-router.use(
-  "/booking",
-  authenticate(),
-  buildProxy(services.bookingService, {
-    "^/booking": "",
-  })
-);
-
-router.use(
-  "/payment",
-  authenticate(),
-  buildProxy(services.paymentService, {
-    "^/payment": "",
-  })
-);
-
-router.use(
-  "/notify",
-  authenticate({ roles: ["admin"] }),
-  buildProxy(services.notificationService, {
-    "^/notify": "",
-  })
-);
+router.use("/booking", authenticate(), buildProxy(services.bookingService));
+router.use("/payment", authenticate(), buildProxy(services.paymentService));
+router.use("/notify", authenticate({ roles: ["admin"] }), buildProxy(services.notificationService));
 
 module.exports = router;

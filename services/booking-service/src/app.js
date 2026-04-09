@@ -9,15 +9,19 @@ const bookingRoutes = require("./routes/bookingRoutes");
 
 const app = express();
 
+// 1. Tell Express to trust the Gateway proxy headers
+app.set("trust proxy", 1);
+
 app.use(cors());
 app.use(helmet());
 app.use(express.json());
 app.use(morgan("combined"));
 
-
+// 2. Increase the limit and isolate it per user ID instead of global IP
 const bookingLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 60,
+  keyGenerator: (req) => req.headers["x-user-id"] || req.ip,
   message: {
     message: "Too many booking requests. Please try again later.",
   },
@@ -31,7 +35,6 @@ app.use("/", bookingRoutes);
 
 app.get("/health", (_req, res) => {
   return res.json({ service: "booking-service", status: "ok" });
-  res.json({ status: "Booking service running 🎟️" });
 });
 
 app.use((err, _req, res, _next) => {
