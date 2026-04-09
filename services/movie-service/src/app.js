@@ -10,7 +10,7 @@ app.use(cors());
 app.use(helmet());
 app.use(express.json());
 app.use(morgan("combined"));
-app.use("/movies", movieRoutes);
+app.use("/", movieRoutes);
 
 app.get("/health", (_req, res) => {
   return res.json({ service: "movie-service", status: "ok" });
