@@ -37,7 +37,7 @@ function LoginPage() {
         <p className="mb-3 text-xs uppercase tracking-[0.35em] text-amber-200/70">Login</p>
         <h1 className="title-font text-4xl font-semibold">Step into the control room</h1>
         <p className="mt-3 text-sm leading-7 text-white/65">
-          Sign in to browse movies, lock seats, and track payment outcomes across the event-driven flow.
+          Sign in to browse movies, lock seats, and track payment.
         </p>
 
         <form onSubmit={submit} className="mt-8 space-y-4">

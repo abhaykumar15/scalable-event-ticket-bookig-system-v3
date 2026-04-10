@@ -16,11 +16,11 @@ function Navbar() {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <Link to={isAuthenticated ? "/movies" : "/login"} className="flex items-center gap-3">
           <div className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs uppercase tracking-[0.3em] text-amber-200">
-            Scale
+            Cine Vibe
           </div>
           <div>
-            <p className="title-font text-lg font-semibold">Ticket Atlas</p>
-            <p className="text-xs text-white/50">Microservices Demo Platform</p>
+            <p className="title-font text-lg font-semibold">Book it now!!</p>
+            <p className="text-xs text-white/50">Book Tickets for Movies and Events</p>
           </div>
         </Link>
 

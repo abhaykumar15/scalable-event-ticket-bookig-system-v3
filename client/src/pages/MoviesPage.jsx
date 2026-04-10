@@ -88,11 +88,10 @@ function MoviesPage() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <h1 className="title-font text-4xl font-semibold sm:text-5xl">
-              Browse shows, reserve seats, and watch the payment pipeline work in real time.
+              Browse shows, reserve seats, watch Movies and chill.
             </h1>
             <p className="mt-4 text-sm leading-7 text-white/65">
-              This frontend talks only to the gateway while the backend fans out booking events through RabbitMQ,
-              applies Redis seat locks, and updates booking status asynchronously.
+              look for movies,events and more.
             </p>
           </div>
           <div className="rounded-3xl border border-white/10 bg-black/20 px-5 py-4">
