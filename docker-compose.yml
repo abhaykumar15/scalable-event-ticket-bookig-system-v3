@@ -1,26 +1,22 @@
 services:
-
-  
-  nginx:
-    image: nginx:1.25-alpine
-    container_name: ticket-nginx
-    ports:
-      - "80:80"       # public-facing port (was 4000 on gateway before)
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  client:
+    build:
+      context: ./client
+      args:
+        VITE_API_BASE_URL: http://localhost:4000
+    container_name: ticket-client
     depends_on:
-      - gateway_1
-      - gateway_2
-      - gateway_3
+      gateway:
+        condition: service_started
+    ports:
+      - "5173:80"
     networks:
       - ticket-network
-    restart: unless-stopped
 
-  
-  gateway_1:
+  gateway:
     build: ./gateway
-    container_name: ticket-gateway-1
-    environment: &gateway-env
+    container_name: ticket-gateway
+    environment:
       PORT: 4000
       JWT_SECRET: super-secret-jwt-key
       AUTH_SERVICE_URL: http://auth-service:4001
@@ -28,7 +24,8 @@ services:
       BOOKING_SERVICE_URL: http://booking-service:4003
       PAYMENT_SERVICE_URL: http://payment-service:4004
       NOTIFICATION_SERVICE_URL: http://notification-service:4005
-    depends_on: &gateway-deps
+      EVENT_SERVICE_URL: http://event-service:4006
+    depends_on:
       auth-service:
         condition: service_started
       movie-service:
@@ -39,39 +36,10 @@ services:
         condition: service_started
       notification-service:
         condition: service_started
-    networks:
-      - ticket-network
-    restart: unless-stopped
-
-  gateway_2:
-    build: ./gateway
-    container_name: ticket-gateway-2
-    environment: *gateway-env
-    depends_on: *gateway-deps
-    networks:
-      - ticket-network
-    restart: unless-stopped
-
-  gateway_3:
-    build: ./gateway
-    container_name: ticket-gateway-3
-    environment: *gateway-env
-    depends_on: *gateway-deps
-    networks:
-      - ticket-network
-    restart: unless-stopped
-
-  
-  client:
-    build:
-      context: ./client
-      args:
-        VITE_API_BASE_URL: http://localhost:80   # now points at nginx
-    container_name: ticket-client
-    depends_on:
-      - nginx
+      event-service:
+        condition: service_started
     ports:
-      - "5173:80"
+      - "4000:4000"
     networks:
       - ticket-network
 
@@ -157,6 +125,21 @@ services:
         condition: service_healthy
     ports:
       - "4005:4005"
+    networks:
+      - ticket-network
+
+  event-service:
+    build: ./services/event-service
+    container_name: event-service
+    environment:
+      PORT: 4006
+      MONGO_URI: mongodb://mongo:27017/ticket_event
+      JWT_SECRET: super-secret-jwt-key
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "4006:4006"
     networks:
       - ticket-network
 

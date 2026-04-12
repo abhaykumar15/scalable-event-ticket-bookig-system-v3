@@ -3,13 +3,13 @@ const express = require("express");
 const {
   createBooking,
   getBookingById,
-  getBookingHistory,
+  getUserBookings,
 } = require("../controllers/bookingController");
 
 const router = express.Router();
 
-router.get("/bookings/history/:userId", getBookingHistory);
-router.post("/bookings",            createBooking);
-router.get("/bookings/:bookingId",  getBookingById);
+router.post("/bookings", createBooking);
+router.get("/bookings", getUserBookings);
+router.get("/bookings/:bookingId", getBookingById);
 
 module.exports = router;
