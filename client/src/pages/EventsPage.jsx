@@ -219,7 +219,8 @@ export default function EventsPage() {
             {query ? `No events match "${query}"` : filter !== "ALL" ? `No ${filter} events found.` : "No events yet."}
           </div>
         ) : (
-          filtered.map((event) => <EventCard key={event._id} event={event} />)
+          // Change this line in the events list:
+          filtered.map((ev) => <EventCard key={ev._id} event={ev} onRefresh={fetchEvents} />)
         )}
       </section>
     </div>

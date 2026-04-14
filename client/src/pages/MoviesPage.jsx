@@ -211,7 +211,8 @@ const addShow = async (e) => {
             {query ? `No movies match "${query}"` : "No movies yet. Create one as an admin to start."}
           </div>
         ) : (
-          filtered.map((movie) => <MovieCard key={movie._id} movie={movie} />)
+          // Change this line in the movie list section:
+          filtered.map((movie) => <MovieCard key={movie._id} movie={movie} onRefresh={fetchMovies} />)
         )}
       </section>
     </div>

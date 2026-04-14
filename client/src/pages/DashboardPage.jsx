@@ -25,6 +25,158 @@ function greeting() {
   return "Good evening";
 }
 
+function AdminPanel() {
+  const [period, setPeriod]   = useState("day");
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
+
+  const periods = [
+    { label: "Last Hour",  value: "hour"  },
+    { label: "Today",      value: "day"   },
+    { label: "This Week",  value: "week"  },
+    { label: "This Month", value: "month" },
+  ];
+
+  const fetchBookings = async (p) => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await api.get(`/booking/bookings/admin/all?period=${p}&limit=100`);
+      setData(res.data);
+    } catch (e) {
+      setError(e.response?.data?.message || "Unable to fetch bookings.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchBookings(period); }, [period]);
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-panel rounded-[2rem] p-8 flex flex-col gap-6"
+    >
+      <div>
+        <p className="text-xs uppercase tracking-[0.35em] text-amber-200/70">👑 Admin Panel</p>
+        <h2 className="title-font mt-2 text-3xl font-semibold">Booking Analytics</h2>
+      </div>
+
+      {/* Period selector */}
+      <div className="flex gap-2 flex-wrap">
+        {periods.map((p) => (
+          <button
+            key={p.value}
+            type="button"
+            onClick={() => setPeriod(p.value)}
+            className={[
+              "rounded-2xl border px-4 py-2 text-sm font-semibold transition",
+              period === p.value
+                ? "border-amber-300 bg-amber-300 text-black"
+                : "border-white/10 bg-white/5 text-white hover:border-amber-200/50",
+            ].join(" ")}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="text-sm text-red-300">{error}</p>}
+
+      {loading ? (
+        <div className="flex h-24 items-center justify-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-amber-300 border-t-transparent" />
+        </div>
+      ) : data ? (
+        <>
+          {/* Stats grid */}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: "Total Bookings",  value: data.stats.totalBookings, color: "text-white" },
+              { label: "Revenue",         value: `₹${data.stats.totalRevenue.toLocaleString()}`, color: "text-amber-200" },
+              { label: "Confirmed",       value: data.stats.successCount, color: "text-green-300" },
+              { label: "Pending / Failed",value: `${data.stats.pendingCount} / ${data.stats.failedCount}`, color: "text-orange-300" },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                <p className="text-xs uppercase tracking-[0.2em] text-white/50">{stat.label}</p>
+                <p className={`mt-2 text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Bookings table */}
+          {data.bookings.length > 0 ? (
+            <div className="overflow-x-auto rounded-2xl border border-white/10">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 bg-black/20">
+                    {["User", "Movie", "Seats", "Amount", "Status", "Date"].map((h) => (
+                      <th key={h} className="px-4 py-3 text-left text-xs uppercase tracking-[0.2em] text-white/50">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.bookings.map((b) => (
+                    <tr key={b._id} className="border-b border-white/5 hover:bg-white/5 transition">
+                      <td className="px-4 py-3 text-white/70">{b.userEmail}</td>
+                      <td className="px-4 py-3 font-medium">{b.movieTitle}</td>
+                      <td className="px-4 py-3 text-white/60">{b.seatNumbers.join(", ")}</td>
+                      <td className="px-4 py-3 text-amber-200 font-semibold">₹{b.amount}</td>
+                      <td className="px-4 py-3">
+                        <span className={[
+                          "rounded-full px-2 py-0.5 text-xs font-semibold",
+                          b.status === "PAYMENT_SUCCESS"  ? "bg-green-400/20 text-green-300"  :
+                          b.status === "PENDING_PAYMENT"  ? "bg-orange-400/20 text-orange-300" :
+                                                            "bg-red-400/20 text-red-300",
+                        ].join(" ")}>
+                          {b.status.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-white/50 text-xs">
+                        {new Date(b.createdAt).toLocaleString("en-IN")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-white/40 text-center py-8">No bookings in this period.</p>
+          )}
+        </>
+      ) : null}
+
+      {/* Manage links */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Link
+          to="/movies"
+          className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-amber-300/30"
+        >
+          <span className="text-2xl">🎬</span>
+          <div>
+            <p className="font-semibold">Manage Movies</p>
+            <p className="text-xs text-white/50">Add, edit, delete movies and shows</p>
+          </div>
+          <span className="ml-auto text-white/30">→</span>
+        </Link>
+        <Link
+          to="/events"
+          className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-amber-300/30"
+        >
+          <span className="text-2xl">🎪</span>
+          <div>
+            <p className="font-semibold">Manage Events</p>
+            <p className="text-xs text-white/50">Add, edit, delete events and slots</p>
+          </div>
+          <span className="ml-auto text-white/30">→</span>
+        </Link>
+      </div>
+    </motion.section>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [movies, setMovies] = useState([]);
@@ -274,6 +426,11 @@ export default function DashboardPage() {
           <span className="text-white/30 transition group-hover:text-amber-200 group-hover:translate-x-1">→</span>
         </Link>
       </motion.div>
+
+        {/* ── Admin Panel ── */}
+        {user?.role === "admin" && (
+        <AdminPanel />
+        )}
 
     </div>
   );
