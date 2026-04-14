@@ -1,4 +1,4 @@
-# 🎟️ BookIt — Scalable Event & Movie Ticket Booking System
+# 🎟️ CineVibe — Scalable Event & Movie Ticket Booking System
 
 A production-structured, full-stack ticket booking platform inspired by BookMyShow. Built with a **microservices architecture** using Docker, Node.js, React, MongoDB, Redis, and RabbitMQ.
 
