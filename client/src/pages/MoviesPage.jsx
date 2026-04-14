@@ -61,6 +61,30 @@ export default function MoviesPage() {
       setSubmitting(false);
     }
   };
+  // New state for "add show" form
+const [addShowForm, setAddShowForm] = useState({
+  movieId: "", theatreName: "", city: "", screenName: "Screen 1",
+  date: "", startTime: "", price: 250, totalSeats: 40,
+});
+
+const addShow = async (e) => {
+  e.preventDefault();
+  try {
+    await api.post(`/movies/${addShowForm.movieId}/shows`, {
+      theatreName: addShowForm.theatreName,
+      city: addShowForm.city,
+      screenName: addShowForm.screenName,
+      date: addShowForm.date,
+      startTime: addShowForm.startTime,
+      price: Number(addShowForm.price),
+      totalSeats: Number(addShowForm.totalSeats),
+    });
+    await fetchMovies();
+  } catch (e) {
+    setError(e.response?.data?.message || "Unable to add show.");
+  }
+};
+
 
   // Top-rated movies for the carousel (top 6 by rating)
   const featured = useMemo(
