@@ -12,16 +12,21 @@ const CATEGORY_EMOJI = {
   "Festival": "🎪", "Sports": "🏟️", "Conference": "🧠", "Other": "✨",
 };
 
-const emptyForm = {
-  title: "", description: "", category: "Concert", artist: "", language: "",
-  durationMinutes: 90, posterUrl: "", rating: 4.5,
-  venueName: "", city: "", section: "General", startTime: "", price: 599, totalSeats: 60,
+const emptyEventForm = {
+  title: "", description: "", category: "Concert", artist: "",
+  language: "", durationMinutes: 90, posterUrl: "", rating: 4.5,
+};
+
+const emptySlot = {
+  venueName: "", city: "", section: "General",
+  startTime: "", price: 599, totalSeats: 60,
 };
 
 export default function EventsPage() {
   const { user } = useAuth();
   const [events, setEvents]         = useState([]);
-  const [form, setForm]             = useState(emptyForm);
+  const [form, setForm]             = useState(emptyEventForm);
+  const [slots, setSlots]           = useState([{ ...emptySlot }]);
   const [loading, setLoading]       = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]           = useState("");
@@ -43,22 +48,36 @@ export default function EventsPage() {
 
   useEffect(() => { fetchEvents(); }, []);
 
+  // Slot row helpers
+  const addSlot    = () => setSlots((s) => [...s, { ...emptySlot }]);
+  const removeSlot = (i) => setSlots((s) => s.filter((_, idx) => idx !== i));
+  const updateSlot = (i, key, val) =>
+    setSlots((s) => s.map((sl, idx) => idx === i ? { ...sl, [key]: val } : sl));
+
   const createEvent = async (e) => {
     e.preventDefault();
+    if (slots.some((s) => !s.venueName || !s.city || !s.startTime || !s.price)) {
+      setError("Please fill all required fields for every slot.");
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
       await api.post("/events", {
-        title: form.title, description: form.description, category: form.category,
-        artist: form.artist, language: form.language,
+        ...form,
         durationMinutes: Number(form.durationMinutes),
-        posterUrl: form.posterUrl, rating: Number(form.rating),
-        slots: [{
-          venueName: form.venueName, city: form.city, section: form.section,
-          startTime: form.startTime, price: Number(form.price), totalSeats: Number(form.totalSeats),
-        }],
+        rating: Number(form.rating),
+        slots: slots.map((s) => ({
+          venueName:  s.venueName,
+          city:       s.city,
+          section:    s.section || "General",
+          startTime:  s.startTime,
+          price:      Number(s.price),
+          totalSeats: Number(s.totalSeats),
+        })),
       });
-      setForm(emptyForm);
+      setForm(emptyEventForm);
+      setSlots([{ ...emptySlot }]);
       await fetchEvents();
     } catch (e) {
       setError(e.response?.data?.message || "Unable to create event.");
@@ -67,7 +86,6 @@ export default function EventsPage() {
     }
   };
 
-  // Top-rated events for the carousel (top 6 by rating)
   const featured = useMemo(
     () => [...events].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 6),
     [events]
@@ -165,34 +183,93 @@ export default function EventsPage() {
         <motion.section initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-[2rem] p-8">
           <div className="mb-6">
             <p className="text-xs uppercase tracking-[0.35em] text-amber-200/70">Admin Panel</p>
-            <h2 className="title-font mt-3 text-3xl font-semibold">Publish an event</h2>
+            <h2 className="title-font mt-3 text-3xl font-semibold">Publish an Event</h2>
+            <p className="mt-1 text-sm text-white/50">Fill event details, then add one or more slots across venues and dates.</p>
           </div>
-          <form onSubmit={createEvent} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <select value={form.category} onChange={(e) => setForm((c) => ({ ...c, category: e.target.value }))}
-              className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300/50">
-              {CATEGORIES.map((cat) => <option key={cat} value={cat} className="bg-gray-900">{cat}</option>)}
-            </select>
-            {[
-              ["title","text"],["artist","text"],["language","text"],
-              ["durationMinutes","number"],["posterUrl","url"],["rating","number"],
-              ["venueName","text"],["city","text"],["section","text"],
-              ["startTime","datetime-local"],["price","number"],["totalSeats","number"],
-            ].map(([key, type]) => (
-              <input key={key} type={type} placeholder={key} value={form[key]}
-                onChange={(e) => setForm((c) => ({ ...c, [key]: e.target.value }))}
-                className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300/50" />
-            ))}
-            <textarea placeholder="description" value={form.description} rows={2}
-              onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))}
-              className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300/50 xl:col-span-3" />
-            <button type="submit" disabled={submitting} className="rounded-2xl bg-amber-300 px-4 py-3 font-semibold text-black transition hover:bg-amber-200 disabled:opacity-60">
-              {submitting ? "Publishing..." : "Create event"}
+
+          <form onSubmit={createEvent} className="flex flex-col gap-8">
+
+            {/* ── Event details ── */}
+            <div>
+              <p className="mb-3 text-xs uppercase tracking-[0.25em] text-amber-200/60">🎪 Event Details</p>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm((c) => ({ ...c, category: e.target.value }))}
+                  className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50"
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat} className="bg-gray-900">{CATEGORY_EMOJI[cat]} {cat}</option>
+                  ))}
+                </select>
+                <input required type="text"   placeholder="Event Title"      value={form.title}           onChange={(e) => setForm((c) => ({ ...c, title: e.target.value }))}           className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50" />
+                <input required type="text"   placeholder="Artist / Headliner" value={form.artist}         onChange={(e) => setForm((c) => ({ ...c, artist: e.target.value }))}          className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50" />
+                <input required type="text"   placeholder="Language"         value={form.language}        onChange={(e) => setForm((c) => ({ ...c, language: e.target.value }))}        className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50" />
+                <input required type="number" placeholder="Duration (min)"   value={form.durationMinutes} onChange={(e) => setForm((c) => ({ ...c, durationMinutes: e.target.value }))} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50" min="1" />
+                <input          type="number" placeholder="Rating (0–5)"     value={form.rating}          onChange={(e) => setForm((c) => ({ ...c, rating: e.target.value }))}          className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50" step="0.1" min="0" max="5" />
+                <input          type="url"    placeholder="Poster URL"        value={form.posterUrl}       onChange={(e) => setForm((c) => ({ ...c, posterUrl: e.target.value }))}       className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50 xl:col-span-2" />
+                <textarea required placeholder="Description" value={form.description} rows={2}
+                  onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))}
+                  className="xl:col-span-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50 resize-none"
+                />
+              </div>
+            </div>
+
+            {/* ── Slots ── */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs uppercase tracking-[0.25em] text-amber-200/60">🎟️ Slots ({slots.length})</p>
+                <button
+                  type="button"
+                  onClick={addSlot}
+                  className="rounded-xl border border-amber-300/40 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-300/20"
+                >
+                  + Add Slot
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                {slots.map((slot, i) => (
+                  <div key={i} className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-xs font-semibold text-white/60">Slot #{i + 1}</p>
+                      {slots.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeSlot(i)}
+                          className="rounded-lg border border-red-400/30 bg-red-400/10 px-2 py-1 text-xs text-red-300 hover:bg-red-400/20"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      <input required type="text"           placeholder="Venue Name"    value={slot.venueName}  onChange={(e) => updateSlot(i, "venueName",  e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" />
+                      <input required type="text"           placeholder="City"          value={slot.city}       onChange={(e) => updateSlot(i, "city",       e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" />
+                      <input          type="text"           placeholder="Section (e.g. Floor, VIP)" value={slot.section} onChange={(e) => updateSlot(i, "section", e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" />
+                      <input required type="datetime-local" placeholder="Start Time"   value={slot.startTime}  onChange={(e) => updateSlot(i, "startTime",  e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" />
+                      <input required type="number"         placeholder="Price (₹)"    value={slot.price}      onChange={(e) => updateSlot(i, "price",      e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" min="0" />
+                      <input required type="number"         placeholder="Total Seats"  value={slot.totalSeats} onChange={(e) => updateSlot(i, "totalSeats", e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" min="1" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {error && <p className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="self-start rounded-2xl bg-amber-300 px-8 py-3 font-semibold text-black transition hover:bg-amber-200 disabled:opacity-60"
+            >
+              {submitting ? "Publishing..." : `Publish Event with ${slots.length} Slot${slots.length > 1 ? "s" : ""}`}
             </button>
           </form>
         </motion.section>
       )}
 
-      {error && <p className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-red-200">{error}</p>}
+      {error && !submitting && <p className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-red-200">{error}</p>}
 
       {/* ── Category filter pills ── */}
       {!loading && events.length > 0 && (
@@ -219,8 +296,7 @@ export default function EventsPage() {
             {query ? `No events match "${query}"` : filter !== "ALL" ? `No ${filter} events found.` : "No events yet."}
           </div>
         ) : (
-          // Change this line in the events list:
-          filtered.map((ev) => <EventCard key={ev._id} event={ev} onRefresh={fetchEvents} />)
+          filtered.map((event) => <EventCard key={event._id} event={event} onRefresh={fetchEvents} />)
         )}
       </section>
     </div>

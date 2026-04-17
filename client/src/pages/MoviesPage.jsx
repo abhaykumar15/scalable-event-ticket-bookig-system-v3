@@ -6,17 +6,21 @@ import Carousel from "../components/Carousel";
 import MovieCard from "../components/MovieCard";
 import { useAuth } from "../context/AuthContext";
 
-const emptyForm = {
+const emptyMovieForm = {
   title: "", description: "", genre: "", language: "",
   durationMinutes: 150, posterUrl: "", rating: 4.5,
+};
+
+const emptyShow = {
   theatreName: "", city: "", screenName: "Screen 1",
-  startTime: "", price: 250, totalSeats: 40,
+  date: "", startTime: "", price: 250, totalSeats: 40,
 };
 
 export default function MoviesPage() {
   const { user } = useAuth();
   const [movies, setMovies]         = useState([]);
-  const [form, setForm]             = useState(emptyForm);
+  const [form, setForm]             = useState(emptyMovieForm);
+  const [shows, setShows]           = useState([{ ...emptyShow }]);
   const [loading, setLoading]       = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]           = useState("");
@@ -37,23 +41,37 @@ export default function MoviesPage() {
 
   useEffect(() => { fetchMovies(); }, []);
 
+  // Show row helpers
+  const addShow = () => setShows((s) => [...s, { ...emptyShow }]);
+  const removeShow = (i) => setShows((s) => s.filter((_, idx) => idx !== i));
+  const updateShow = (i, key, val) =>
+    setShows((s) => s.map((sh, idx) => idx === i ? { ...sh, [key]: val } : sh));
+
   const createMovie = async (e) => {
     e.preventDefault();
+    if (shows.some((s) => !s.theatreName || !s.city || !s.date || !s.startTime || !s.price)) {
+      setError("Please fill all required fields for every show.");
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
       await api.post("/movies", {
-        title: form.title, description: form.description,
-        genre: form.genre, language: form.language,
+        ...form,
         durationMinutes: Number(form.durationMinutes),
-        posterUrl: form.posterUrl, rating: Number(form.rating),
-        shows: [{
-          theatreName: form.theatreName, city: form.city,
-          screenName: form.screenName, startTime: form.startTime,
-          price: Number(form.price), totalSeats: Number(form.totalSeats),
-        }],
+        rating: Number(form.rating),
+        shows: shows.map((s) => ({
+          theatreName: s.theatreName,
+          city:        s.city,
+          screenName:  s.screenName || "Screen 1",
+          date:        s.date,
+          startTime:   s.startTime,
+          price:       Number(s.price),
+          totalSeats:  Number(s.totalSeats),
+        })),
       });
-      setForm(emptyForm);
+      setForm(emptyMovieForm);
+      setShows([{ ...emptyShow }]);
       await fetchMovies();
     } catch (e) {
       setError(e.response?.data?.message || "Unable to create movie.");
@@ -61,32 +79,7 @@ export default function MoviesPage() {
       setSubmitting(false);
     }
   };
-  // New state for "add show" form
-const [addShowForm, setAddShowForm] = useState({
-  movieId: "", theatreName: "", city: "", screenName: "Screen 1",
-  date: "", startTime: "", price: 250, totalSeats: 40,
-});
 
-const addShow = async (e) => {
-  e.preventDefault();
-  try {
-    await api.post(`/movies/${addShowForm.movieId}/shows`, {
-      theatreName: addShowForm.theatreName,
-      city: addShowForm.city,
-      screenName: addShowForm.screenName,
-      date: addShowForm.date,
-      startTime: addShowForm.startTime,
-      price: Number(addShowForm.price),
-      totalSeats: Number(addShowForm.totalSeats),
-    });
-    await fetchMovies();
-  } catch (e) {
-    setError(e.response?.data?.message || "Unable to add show.");
-  }
-};
-
-
-  // Top-rated movies for the carousel (top 6 by rating)
   const featured = useMemo(
     () => [...movies].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 6),
     [movies]
@@ -180,27 +173,83 @@ const addShow = async (e) => {
         <motion.section initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="glass-panel rounded-[2rem] p-8">
           <div className="mb-6">
             <p className="text-xs uppercase tracking-[0.35em] text-amber-200/70">Admin Panel</p>
-            <h2 className="title-font mt-3 text-3xl font-semibold">Publish a movie and its first show</h2>
+            <h2 className="title-font mt-3 text-3xl font-semibold">Publish a Movie</h2>
+            <p className="mt-1 text-sm text-white/50">Fill movie details, then add one or more shows across any dates.</p>
           </div>
-          <form onSubmit={createMovie} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {Object.entries(form).map(([key, value]) => (
-              <input
-                key={key}
-                type={key.toLowerCase().includes("time") ? "datetime-local" : key === "posterUrl" ? "url" : typeof value === "number" ? "number" : "text"}
-                placeholder={key}
-                value={value}
-                onChange={(e) => setForm((c) => ({ ...c, [key]: e.target.value }))}
-                className={`rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300/50 ${key === "description" ? "xl:col-span-3" : ""}`}
-              />
-            ))}
-            <button type="submit" disabled={submitting} className="rounded-2xl bg-amber-300 px-4 py-3 font-semibold text-black transition hover:bg-amber-200 disabled:opacity-60">
-              {submitting ? "Publishing..." : "Create movie"}
+
+          <form onSubmit={createMovie} className="flex flex-col gap-8">
+
+            {/* ── Movie details ── */}
+            <div>
+              <p className="mb-3 text-xs uppercase tracking-[0.25em] text-amber-200/60">🎬 Movie Details</p>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <input required type="text"   placeholder="Title"           value={form.title}           onChange={(e) => setForm((c) => ({ ...c, title: e.target.value }))}           className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50" />
+                <input required type="text"   placeholder="Genre"           value={form.genre}           onChange={(e) => setForm((c) => ({ ...c, genre: e.target.value }))}           className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50" />
+                <input required type="text"   placeholder="Language"        value={form.language}        onChange={(e) => setForm((c) => ({ ...c, language: e.target.value }))}        className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50" />
+                <input required type="number" placeholder="Duration (min)"  value={form.durationMinutes} onChange={(e) => setForm((c) => ({ ...c, durationMinutes: e.target.value }))} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50" />
+                <input          type="number" placeholder="Rating (0–5)"    value={form.rating}          onChange={(e) => setForm((c) => ({ ...c, rating: e.target.value }))}          className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50" step="0.1" min="0" max="5" />
+                <input          type="url"    placeholder="Poster URL"       value={form.posterUrl}       onChange={(e) => setForm((c) => ({ ...c, posterUrl: e.target.value }))}       className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50" />
+                <textarea required placeholder="Description" value={form.description} rows={2}
+                  onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))}
+                  className="xl:col-span-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300/50 resize-none"
+                />
+              </div>
+            </div>
+
+            {/* ── Shows ── */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs uppercase tracking-[0.25em] text-amber-200/60">🎟️ Shows ({shows.length})</p>
+                <button
+                  type="button"
+                  onClick={addShow}
+                  className="rounded-xl border border-amber-300/40 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-300/20"
+                >
+                  + Add Show
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                {shows.map((show, i) => (
+                  <div key={i} className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-xs font-semibold text-white/60">Show #{i + 1}</p>
+                      {shows.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeShow(i)}
+                          className="rounded-lg border border-red-400/30 bg-red-400/10 px-2 py-1 text-xs text-red-300 hover:bg-red-400/20"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <input required type="text"           placeholder="Theatre Name"   value={show.theatreName} onChange={(e) => updateShow(i, "theatreName", e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" />
+                      <input required type="text"           placeholder="City"           value={show.city}        onChange={(e) => updateShow(i, "city",        e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" />
+                      <input          type="text"           placeholder="Screen Name"    value={show.screenName}  onChange={(e) => updateShow(i, "screenName",  e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" />
+                      <input required type="date"           placeholder="Date"           value={show.date}        onChange={(e) => updateShow(i, "date",        e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" />
+                      <input required type="datetime-local" placeholder="Start Time"     value={show.startTime}   onChange={(e) => updateShow(i, "startTime",   e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" />
+                      <input required type="number"         placeholder="Price (₹)"      value={show.price}       onChange={(e) => updateShow(i, "price",       e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" min="0" />
+                      <input required type="number"         placeholder="Total Seats"    value={show.totalSeats}  onChange={(e) => updateShow(i, "totalSeats",  e.target.value)} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-amber-300/50" min="1" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {error && <p className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="self-start rounded-2xl bg-amber-300 px-8 py-3 font-semibold text-black transition hover:bg-amber-200 disabled:opacity-60"
+            >
+              {submitting ? "Publishing..." : `Publish Movie with ${shows.length} Show${shows.length > 1 ? "s" : ""}`}
             </button>
           </form>
         </motion.section>
       )}
-
-      {error && <p className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-red-200">{error}</p>}
 
       {/* ── Movie list ── */}
       <section className="grid gap-6">
@@ -211,7 +260,6 @@ const addShow = async (e) => {
             {query ? `No movies match "${query}"` : "No movies yet. Create one as an admin to start."}
           </div>
         ) : (
-          // Change this line in the movie list section:
           filtered.map((movie) => <MovieCard key={movie._id} movie={movie} onRefresh={fetchMovies} />)
         )}
       </section>
